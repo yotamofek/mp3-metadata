@@ -13,10 +13,7 @@ fn get_id3(i: &mut u32, buf: &[u8], meta: &mut MP3Metadata) -> Result<(), Error>
     let mut x = *i as usize;
     // Get extended information
     if buf.len() > 127 && x + 127 < buf.len() && // V1
-       buf[x] == 'T' as u8 && buf[x + 1] == 'A' as u8 && buf[x + 2] == 'G' as u8 {
-        if meta.tag.is_some() {
-            return Err(Error::DuplicatedIDV3);
-        }
+        buf[x] == 'T' as u8 && buf[x + 1] == 'A' as u8 && buf[x + 2] == 'G' as u8 {
         if let Some(last) = meta.frames.last_mut() {
             if *i <= last.size {
                 return Ok(());
@@ -25,14 +22,16 @@ fn get_id3(i: &mut u32, buf: &[u8], meta: &mut MP3Metadata) -> Result<(), Error>
         }
         *i += 126;
         // tag v1
-        meta.tag = Some(AudioTag {
-            title: create_utf8_str(&buf[x + 3..][..30]),
-            artist: create_utf8_str(&buf[x + 33..][..30]),
-            album: create_utf8_str(&buf[x + 63..][..30]),
-            year: create_utf8_str(&buf[x + 93..][..4]).parse::<u16>().unwrap_or(0),
-            comment: create_utf8_str(&buf[x + 97..][..if buf[x + 97 + 28] != 0 { 30 } else { 28 }]),
-            genre: Genre::from(buf[x + 127]),
-        });
+        if meta.tag.is_none() {
+            meta.tag = Some(AudioTag {
+                title: create_utf8_str(&buf[x + 3..][..30]),
+                artist: create_utf8_str(&buf[x + 33..][..30]),
+                album: create_utf8_str(&buf[x + 63..][..30]),
+                year: create_utf8_str(&buf[x + 93..][..4]).parse::<u16>().unwrap_or(0),
+                comment: create_utf8_str(&buf[x + 97..][..if buf[x + 97 + 28] != 0 { 30 } else { 28 }]),
+                genre: Genre::from(buf[x + 127]),
+            })
+        };
         Ok(())
     } else if buf.len() > x + 13 && // V2 and above
               buf[x] == 'I' as u8 && buf[x + 1] == 'D' as u8 && buf[x + 2] == '3' as u8 {
